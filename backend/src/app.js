@@ -3,8 +3,16 @@ const pool = require("./db/db");
 const minioClient = require("./storage/minio");
 const fileRoutes = require("./routes/file.routes");
 const authRoutes = require("./routes/auth.routes");
+const cors = require("cors");
 
 const app = express();
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    exposedHeaders: ["Content-Disposition"],
+  }),
+);
 app.use(express.json());
 app.use("/files", fileRoutes);
 app.use("/auth", authRoutes);
