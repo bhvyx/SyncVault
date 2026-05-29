@@ -63,6 +63,24 @@ function Dashboard() {
     }
   };
 
+  const handlePreview = async (fileId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await api.get(`/files/view/${fileId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      window.open(response.data.previewUrl, "_blank");
+    } catch (err) {
+      console.error(err);
+
+      alert("Preview failed");
+    }
+  };
+
   const handleDownload = async (fileId) => {
     try {
       const token = localStorage.getItem("token");
@@ -167,10 +185,17 @@ function Dashboard() {
                   className="bg-[#161b22] border border-[#30363d] rounded-2xl p-5 flex items-center justify-between"
                 >
                   <div>
-                    <h3 className="font-medium text-lg">{file.file_name}</h3>
+                    <h3
+                      onClick={() => {
+                        handlePreview(file.id);
+                      }}
+                      className="font-medium text-lg text-blue-400 hover:text-blue-300 cursor-pointer"
+                    >
+                      {file.file_name}
+                    </h3>
 
                     <p className="text-gray-400 text-sm mt-1">
-                      Version {file.version}
+                      Click filename to preview
                     </p>
                   </div>
 
