@@ -125,6 +125,28 @@ function Dashboard() {
     navigate("/login");
   };
 
+  const handleDelete = async (fileId) => {
+    try {
+      const confirmed = window.confirm("Delete this file?");
+
+      if (!confirmed) return;
+
+      const token = localStorage.getItem("token");
+
+      await api.delete(`/files/${fileId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      loadFiles();
+    } catch (err) {
+      console.error(err);
+
+      alert("Delete failed");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
       <nav className="border-b border-[#30363d] bg-[#161b22]">
@@ -199,14 +221,25 @@ function Dashboard() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      handleDownload(file.id);
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg text-sm font-medium transition"
-                  >
-                    Download
-                  </button>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        handleDownload(file.id);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg text-sm font-medium transition"
+                    >
+                      Download
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        handleDelete(file.id);
+                      }}
+                      className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm font-medium transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
