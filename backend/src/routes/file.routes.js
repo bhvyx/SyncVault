@@ -190,20 +190,28 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
 
     const token = uuidv4();
 
+    const { expiryHours } = req.body;
+    let expiresAt = null;
+    if (expiryHours) {
+      expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
+    }
+
     await pool.query(
       `
         INSERT INTO shared_links
         (
           file_id,
-          share_token
+          share_token,
+          expires_at
         )
         VALUES
         (
           $1,
-          $2
+          $2,
+          $3
         )
         `,
-      [fileId, token],
+      [fileId, token, expiresAt],
     );
 
     res.json({
@@ -224,7 +232,8 @@ router.get("/share/:token", async (req, res) => {
 
     const result = await pool.query(
       `
-        SELECT
+       SELECT
+          sl.expires_at,
           f.*
         FROM shared_links sl
         JOIN files f
@@ -241,6 +250,11 @@ router.get("/share/:token", async (req, res) => {
     }
 
     const file = result.rows[0];
+    if (file.expires_at && new Date() > new Date(file.expires_at)) {
+      return res.status(410).json({
+        error: "Link expired",
+      });
+    }
 
     const previewUrl = await minioClient.presignedGetObject(
       "files",

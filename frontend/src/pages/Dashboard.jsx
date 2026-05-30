@@ -150,10 +150,12 @@ function Dashboard() {
   const handleShare = async (fileId) => {
     try {
       const token = localStorage.getItem("token");
-
+      const expiryHours = document.getElementById(`expiry-${fileId}`).value;
       const response = await api.post(
         `/files/${fileId}/share`,
-        {},
+        {
+          expiryHours: expiryHours === "" ? null : Number(expiryHours),
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -246,6 +248,17 @@ function Dashboard() {
                   </div>
 
                   <div className="flex gap-3">
+                    <select
+                      className="bg-[#21262d] border border-[#30363d] rounded-lg px-3 py-2 text-sm"
+                      defaultValue=""
+                      id={`expiry-${file.id}`}
+                    >
+                      <option value="">Never</option>
+                      <option value="1">1 Hour</option>
+                      <option value="24">24 Hours</option>
+                      <option value="168">7 Days</option>
+                    </select>
+
                     <button
                       onClick={() => {
                         handleShare(file.id);

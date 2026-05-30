@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 function Share() {
   const { token } = useParams();
+  const navigate = useNavigate();
 
   const [fileName, setFileName] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
@@ -22,13 +24,13 @@ function Share() {
     } catch (err) {
       console.error(err);
 
-      alert("Invalid share link");
+      navigate("/dashboard");
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-white flex items-center justify-center">
-      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 w-[500px] text-center">
+      <div className="bg-[#161b22] border border-[#30363d] rounded-2xl p-8 w-125 text-center">
         <h1 className="text-3xl font-bold mb-6">Shared File</h1>
 
         <p className="mb-6">{fileName}</p>
