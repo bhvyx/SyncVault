@@ -147,6 +147,30 @@ function Dashboard() {
     }
   };
 
+  const handleShare = async (fileId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await api.post(
+        `/files/${fileId}/share`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      await navigator.clipboard.writeText(response.data.shareUrl);
+
+      alert("Share link copied!");
+    } catch (err) {
+      console.error(err);
+
+      alert("Share failed");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
       <nav className="border-b border-[#30363d] bg-[#161b22]">
@@ -224,13 +248,20 @@ function Dashboard() {
                   <div className="flex gap-3">
                     <button
                       onClick={() => {
+                        handleShare(file.id);
+                      }}
+                      className="bg-purple-600 hover:bg-purple-700 px-5 py-2 rounded-lg text-sm font-medium transition"
+                    >
+                      Share
+                    </button>
+                    <button
+                      onClick={() => {
                         handleDownload(file.id);
                       }}
                       className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg text-sm font-medium transition"
                     >
                       Download
                     </button>
-
                     <button
                       onClick={() => {
                         handleDelete(file.id);
