@@ -8,7 +8,6 @@ function Share() {
   const navigate = useNavigate();
 
   const [fileName, setFileName] = useState("");
-  const [previewUrl, setPreviewUrl] = useState("");
 
   useEffect(() => {
     loadSharedFile();
@@ -19,12 +18,34 @@ function Share() {
       const response = await api.get(`/files/share/${token}`);
 
       setFileName(response.data.fileName);
-
-      setPreviewUrl(response.data.previewUrl);
     } catch (err) {
       console.error(err);
 
       navigate("/dashboard");
+    }
+  };
+
+  const handlePreview = async () => {
+    try {
+      const response = await api.get(`/files/share/${token}?consume=true`);
+
+      window.open(response.data.previewUrl, "_blank");
+    } catch (err) {
+      console.error(err);
+
+      alert(err.response?.data?.error || "Preview failed");
+    }
+  };
+
+  const handleDownload = async () => {
+    try {
+      const response = await api.get(`/files/share/${token}?consume=true`);
+
+      window.location.href = response.data.previewUrl;
+    } catch (err) {
+      console.error(err);
+
+      alert(err.response?.data?.error || "Download failed");
     }
   };
 
@@ -35,21 +56,17 @@ function Share() {
 
         <p className="mb-6">{fileName}</p>
 
-        {previewUrl && (
+        {fileName && (
           <div className="flex justify-center gap-4">
             <button
-              onClick={() => {
-                window.open(previewUrl, "_blank");
-              }}
+              onClick={handlePreview}
               className="bg-green-600 hover:bg-green-700 px-5 py-2 rounded-lg"
             >
               Preview
             </button>
 
             <button
-              onClick={() => {
-                window.location.href = previewUrl;
-              }}
+              onClick={handleDownload}
               className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg"
             >
               Download

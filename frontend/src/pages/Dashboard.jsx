@@ -151,10 +151,12 @@ function Dashboard() {
     try {
       const token = localStorage.getItem("token");
       const expiryHours = document.getElementById(`expiry-${fileId}`).value;
+      const isOneTime = document.getElementById(`one-time-${fileId}`).checked;
       const response = await api.post(
         `/files/${fileId}/share`,
         {
           expiryHours: expiryHours === "" ? null : Number(expiryHours),
+          isOneTime,
         },
         {
           headers: {
@@ -248,6 +250,10 @@ function Dashboard() {
                   </div>
 
                   <div className="flex gap-3">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" id={`one-time-${file.id}`} />
+                      One-Time Link
+                    </label>
                     <select
                       className="bg-[#21262d] border border-[#30363d] rounded-lg px-3 py-2 text-sm"
                       defaultValue=""

@@ -190,7 +190,7 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
 
     const token = uuidv4();
 
-    const { expiryHours } = req.body;
+    const { expiryHours, isOneTime } = req.body;
     let expiresAt = null;
     if (expiryHours) {
       expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000);
@@ -202,16 +202,18 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
         (
           file_id,
           share_token,
-          expires_at
+          expires_at, 
+          is_one_time
         )
         VALUES
         (
           $1,
           $2,
-          $3
+          $3,
+          $4
         )
         `,
-      [fileId, token, expiresAt],
+      [fileId, token, expiresAt, isOneTime || false],
     );
 
     res.json({
@@ -229,11 +231,12 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
 router.get("/share/:token", async (req, res) => {
   try {
     const token = req.params.token;
+    const consume = req.query.consume === "true";
 
     const result = await pool.query(
       `
        SELECT
-          sl.expires_at,
+          sl.*,
           f.*
         FROM shared_links sl
         JOIN files f
@@ -254,6 +257,30 @@ router.get("/share/:token", async (req, res) => {
       return res.status(410).json({
         error: "Link expired",
       });
+    }
+
+    if (file.is_one_time && file.is_used) {
+      return res.status(410).json({
+        error: "Link already used",
+      });
+    }
+
+    if (!consume) {
+      return res.json({
+        fileName: file.file_name,
+        isOneTime: file.is_one_time,
+      });
+    }
+
+    if (consume && file.is_one_time) {
+      await pool.query(
+        `
+    UPDATE shared_links
+    SET is_used = TRUE
+    WHERE share_token = $1
+    `,
+        [token],
+      );
     }
 
     const previewUrl = await minioClient.presignedGetObject(
