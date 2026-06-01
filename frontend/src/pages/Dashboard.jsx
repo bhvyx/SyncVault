@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 import api from "../services/api";
@@ -8,6 +8,13 @@ function Dashboard() {
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [files, setFiles] = useState([]);
+  const [shareFileId, setShareFileId] = useState(null);
+  const [shareExpiry, setShareExpiry] = useState("");
+  const [shareOneTime, setShareOneTime] = useState(false);
+  const [openMenu, setOpenMenu] = useState(null);
+
+  const menuRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const loadFiles = async () => {
     try {
@@ -35,6 +42,36 @@ function Dashboard() {
     loadFiles();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setShareFileId(null);
+
+        setOpenMenu(null);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpenMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const handleUpload = async () => {
     try {
       if (!selectedFile) {
@@ -54,6 +91,8 @@ function Dashboard() {
       });
 
       setSelectedFile(null);
+
+      fileInputRef.current.value = "";
 
       loadFiles();
     } catch (err) {
@@ -150,13 +189,13 @@ function Dashboard() {
   const handleShare = async (fileId) => {
     try {
       const token = localStorage.getItem("token");
-      const expiryHours = document.getElementById(`expiry-${fileId}`).value;
-      const isOneTime = document.getElementById(`one-time-${fileId}`).checked;
+
       const response = await api.post(
         `/files/${fileId}/share`,
         {
-          expiryHours: expiryHours === "" ? null : Number(expiryHours),
-          isOneTime,
+          expiryHours: shareExpiry === "" ? null : Number(shareExpiry),
+
+          isOneTime: shareOneTime,
         },
         {
           headers: {
@@ -168,6 +207,10 @@ function Dashboard() {
       await navigator.clipboard.writeText(response.data.shareUrl);
 
       alert("Share link copied!");
+
+      setShareFileId(null);
+      setShareExpiry("");
+      setShareOneTime(false);
     } catch (err) {
       console.error(err);
 
@@ -200,6 +243,7 @@ function Dashboard() {
 
           <div className="flex flex-col md:flex-row gap-4">
             <input
+              ref={fileInputRef}
               type="file"
               onChange={(e) => {
                 setSelectedFile(e.target.files[0]);
@@ -250,45 +294,49 @@ function Dashboard() {
                   </div>
 
                   <div className="flex gap-3">
-                    <label className="flex items-center gap-2">
-                      <input type="checkbox" id={`one-time-${file.id}`} />
-                      One-Time Link
-                    </label>
-                    <select
-                      className="bg-[#21262d] border border-[#30363d] rounded-lg px-3 py-2 text-sm"
-                      defaultValue=""
-                      id={`expiry-${file.id}`}
-                    >
-                      <option value="">Never</option>
-                      <option value="1">1 Hour</option>
-                      <option value="24">24 Hours</option>
-                      <option value="168">7 Days</option>
-                    </select>
-
                     <button
                       onClick={() => {
-                        handleShare(file.id);
+                        setShareFileId(file.id);
                       }}
                       className="bg-purple-600 hover:bg-purple-700 px-5 py-2 rounded-lg text-sm font-medium transition"
                     >
                       Share
                     </button>
-                    <button
-                      onClick={() => {
-                        handleDownload(file.id);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 px-5 py-2 rounded-lg text-sm font-medium transition"
-                    >
-                      Download
-                    </button>
-                    <button
-                      onClick={() => {
-                        handleDelete(file.id);
-                      }}
-                      className="bg-red-600 hover:bg-red-700 px-5 py-2 rounded-lg text-sm font-medium transition"
-                    >
-                      Delete
-                    </button>
+
+                    <div ref={menuRef} className="relative">
+                      <button
+                        onClick={() => {
+                          setOpenMenu(openMenu === file.id ? null : file.id);
+                        }}
+                        className="bg-[#21262d] hover:bg-[#30363d] px-4 py-2 rounded-lg"
+                      >
+                        ⋮
+                      </button>
+
+                      {openMenu === file.id && (
+                        <div className="absolute right-0 mt-2 w-48 bg-[#161b22] border border-[#30363d] rounded-xl shadow-lg z-50">
+                          <button
+                            onClick={() => {
+                              handleDownload(file.id);
+                              setOpenMenu(null);
+                            }}
+                            className="block w-full text-left px-4 py-3 hover:bg-[#21262d]"
+                          >
+                            Download
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              handleDelete(file.id);
+                              setOpenMenu(null);
+                            }}
+                            className="block w-full text-left px-4 py-3 hover:bg-[#21262d]"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -296,6 +344,63 @@ function Dashboard() {
           )}
         </div>
       </main>
+      {shareFileId && (
+        <div
+          onClick={() => {
+            setShareFileId(null);
+          }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center"
+        >
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6 w-112.5"
+          >
+            <h2 className="text-xl font-bold mb-5">Create Share Link</h2>
+
+            <select
+              value={shareExpiry}
+              onChange={(e) => setShareExpiry(e.target.value)}
+              className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg p-3 mb-4"
+            >
+              <option value="">Never Expire</option>
+
+              <option value="1">1 Hour</option>
+
+              <option value="24">24 Hours</option>
+
+              <option value="168">7 Days</option>
+            </select>
+
+            <label className="flex items-center gap-3 mb-6">
+              <input
+                type="checkbox"
+                checked={shareOneTime}
+                onChange={(e) => setShareOneTime(e.target.checked)}
+              />
+              One-Time Link
+            </label>
+
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShareFileId(null);
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => handleShare(shareFileId)}
+                className="bg-purple-600 px-5 py-2 rounded-lg"
+              >
+                Generate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
