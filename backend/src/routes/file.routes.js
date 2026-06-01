@@ -7,7 +7,11 @@ const authMiddleware = require("../middleware/auth.middleware");
 
 const router = express.Router();
 const upload = multer({
-  dest: "uploads/",
+  storage: multer.memoryStorage(),
+
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
 });
 
 router.post(
@@ -17,11 +21,11 @@ router.post(
   async (req, res) => {
     try {
       const file = req.file;
-      await minioClient.fPutObject("files", file.filename, file.path, {
+      const fileId = uuidv4();
+
+      await minioClient.putObject("files", fileId, file.buffer, file.size, {
         "Content-Type": file.mimetype,
       });
-
-      const fileId = uuidv4();
 
       await pool.query(
         `
@@ -33,7 +37,7 @@ router.post(
         )
         VALUES ($1, $2, $3, $4)
     `,
-        [fileId, file.originalname, file.filename, req.user.id],
+        [fileId, file.originalname, fileId, req.user.id],
       );
 
       const versionId = uuidv4();
