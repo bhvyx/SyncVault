@@ -12,6 +12,8 @@ function Dashboard() {
   const [shareExpiry, setShareExpiry] = useState("");
   const [shareOneTime, setShareOneTime] = useState(false);
   const [openMenu, setOpenMenu] = useState(null);
+  const [manageFileId, setManageFileId] = useState(null);
+  const [shareLinks, setShareLinks] = useState([]);
 
   const menuRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -55,20 +57,6 @@ function Dashboard() {
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setOpenMenu(null);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
@@ -218,6 +206,70 @@ function Dashboard() {
     }
   };
 
+  const handleManageLinks = async (fileId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await api.get(`/files/${fileId}/share-links`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setShareLinks(response.data);
+      setManageFileId(fileId);
+    } catch (err) {
+      console.error(err);
+
+      alert("Failed to load links");
+    }
+  };
+
+  const handleRevokeLink = async (linkId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await api.patch(
+        `/files/share-links/${linkId}/revoke`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      setShareLinks((prev) =>
+        prev.map((link) =>
+          link.id === linkId
+            ? {
+                ...link,
+                is_revoked: true,
+              }
+            : link,
+        ),
+      );
+    } catch (err) {
+      console.error(err);
+
+      alert("Failed to revoke link");
+    }
+  };
+
+  const handleCopyLink = async (shareToken) => {
+    try {
+      const url = `${window.location.origin}/share/${shareToken}`;
+
+      await navigator.clipboard.writeText(url);
+
+      alert("Link copied!");
+    } catch (err) {
+      console.error(err);
+
+      alert("Copy failed");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
       <nav className="border-b border-[#30363d] bg-[#161b22]">
@@ -334,6 +386,16 @@ function Dashboard() {
                           >
                             Delete
                           </button>
+                          <button
+                            onClick={() => {
+                              handleManageLinks(file.id);
+
+                              setOpenMenu(null);
+                            }}
+                            className="block w-full text-left px-4 py-3 hover:bg-[#21262d]"
+                          >
+                            Manage Links
+                          </button>
                         </div>
                       )}
                     </div>
@@ -398,6 +460,102 @@ function Dashboard() {
                 Generate
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {manageFileId && (
+        <div
+          onClick={() => {
+            setManageFileId(null);
+          }}
+          className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+        >
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+            className="bg-[#161b22] border border-[#30363d] rounded-2xl p-6 w-162.5 max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold">Share Links</h2>
+
+              <button
+                onClick={() => {
+                  setManageFileId(null);
+                }}
+                className="text-gray-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {shareLinks.length === 0 ? (
+              <p className="text-gray-400">No share links found</p>
+            ) : (
+              <div className="space-y-4">
+                {shareLinks.map((link) => (
+                  <div
+                    key={link.id}
+                    className={`border rounded-xl p-4 ${
+                      link.is_revoked
+                        ? "border-red-500 opacity-60"
+                        : "border-[#30363d]"
+                    }`}
+                  >
+                    <p className="font-mono text-sm mb-2">
+                      {link.share_token.slice(0, 12)}...
+                    </p>
+
+                    <div className="text-sm text-gray-400 mb-4">
+                      <p>
+                        Expires:{" "}
+                        {link.expires_at
+                          ? new Date(link.expires_at).toLocaleString()
+                          : "Never"}
+                      </p>
+
+                      <p>Type: {link.is_one_time ? "One-Time" : "Normal"}</p>
+
+                      <p
+                        className={
+                          link.is_revoked
+                            ? "text-red-400"
+                            : link.is_used
+                              ? "text-yellow-400"
+                              : "text-green-400"
+                        }
+                      >
+                        Status:{" "}
+                        {link.is_revoked
+                          ? "Revoked"
+                          : link.is_used
+                            ? "Used"
+                            : "Active"}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleCopyLink(link.share_token)}
+                        className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm"
+                      >
+                        Copy
+                      </button>
+
+                      {!link.is_revoked && (
+                        <button
+                          onClick={() => handleRevokeLink(link.id)}
+                          className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
+                        >
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

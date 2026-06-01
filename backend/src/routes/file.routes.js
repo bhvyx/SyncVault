@@ -259,6 +259,12 @@ router.get("/share/:token", async (req, res) => {
       });
     }
 
+    if (file.is_revoked) {
+      return res.status(410).json({
+        error: "Link revoked",
+      });
+    }
+
     if (file.is_one_time && file.is_used) {
       return res.status(410).json({
         error: "Link already used",
@@ -298,6 +304,74 @@ router.get("/share/:token", async (req, res) => {
 
     res.status(500).json({
       error: "Share link failed",
+    });
+  }
+});
+
+router.get("/:id/share-links", authMiddleware, async (req, res) => {
+  try {
+    const fileId = req.params.id;
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        share_token,
+        expires_at,
+        is_one_time,
+        is_used,
+        is_revoked,
+        created_at
+      FROM shared_links
+      WHERE file_id = $1
+      ORDER BY created_at DESC
+      `,
+      [fileId],
+    );
+
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Failed to fetch links",
+    });
+  }
+});
+
+router.patch("/share-links/:id/revoke", authMiddleware, async (req, res) => {
+  try {
+    const linkId = req.params.id;
+
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `
+        UPDATE shared_links sl
+        SET is_revoked = TRUE
+        FROM files f
+        WHERE sl.file_id = f.id
+        AND sl.id = $1
+        AND f.user_id = $2
+        RETURNING sl.id
+        `,
+      [linkId, userId],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({
+        error: "Not authorized",
+      });
+    }
+
+    res.json({
+      success: true,
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Failed to revoke link",
     });
   }
 });
