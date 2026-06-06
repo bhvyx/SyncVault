@@ -21,6 +21,24 @@ router.post(
   async (req, res) => {
     try {
       const file = req.file;
+
+      const fileCountResult = await pool.query(
+        `
+        SELECT COUNT(*)
+        FROM files
+        WHERE user_id = $1
+        `,
+        [req.user.id],
+      );
+
+      const fileCount = Number(fileCountResult.rows[0].count);
+
+      if (fileCount >= 50) {
+        return res.status(403).json({
+          error: "Maximum file limit (50) reached",
+        });
+      }
+
       const fileId = uuidv4();
 
       await minioClient.putObject("files", fileId, file.buffer, file.size, {
@@ -189,6 +207,23 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({
         error: "File not found",
+      });
+    }
+
+    const linksResult = await pool.query(
+      `
+    SELECT COUNT(*)
+    FROM shared_links
+    WHERE file_id = $1
+    `,
+      [fileId],
+    );
+
+    const linkCount = Number(linksResult.rows[0].count);
+
+    if (linkCount >= 20) {
+      return res.status(403).json({
+        error: "Maximum share link limit (20) reached for this file",
       });
     }
 
@@ -376,6 +411,41 @@ router.patch("/share-links/:id/revoke", authMiddleware, async (req, res) => {
 
     res.status(500).json({
       error: "Failed to revoke link",
+    });
+  }
+});
+
+router.delete("/share-links/:id", authMiddleware, async (req, res) => {
+  try {
+    const linkId = req.params.id;
+
+    const result = await pool.query(
+      `
+        DELETE FROM shared_links sl
+        USING files f
+        WHERE sl.file_id = f.id
+        AND sl.id = $1
+        AND f.user_id = $2
+        AND sl.is_revoked = TRUE
+        RETURNING sl.id
+      `,
+      [linkId, req.user.id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: "Revoked link not found",
+      });
+    }
+
+    res.json({
+      message: "Link deleted successfully",
+    });
+  } catch (err) {
+    console.error(err);
+
+    res.status(500).json({
+      error: "Delete link failed",
     });
   }
 });

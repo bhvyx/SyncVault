@@ -86,7 +86,7 @@ function Dashboard() {
     } catch (err) {
       console.error(err);
 
-      alert("Upload failed");
+      alert(err.response?.data?.error || "Upload failed");
     }
   };
 
@@ -200,9 +200,7 @@ function Dashboard() {
       setShareExpiry("");
       setShareOneTime(false);
     } catch (err) {
-      console.error(err);
-
-      alert("Share failed");
+      alert(err.response?.data?.error || "Share failed");
     }
   };
 
@@ -253,6 +251,24 @@ function Dashboard() {
       console.error(err);
 
       alert("Failed to revoke link");
+    }
+  };
+
+  const handleDeleteLink = async (linkId) => {
+    try {
+      const token = localStorage.getItem("token");
+
+      await api.delete(`/files/share-links/${linkId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setShareLinks(shareLinks.filter((link) => link.id !== linkId));
+    } catch (err) {
+      console.error(err);
+
+      alert(err.response?.data?.error || "Delete failed");
     }
   };
 
@@ -341,7 +357,7 @@ function Dashboard() {
                     </h3>
 
                     <p className="text-gray-400 text-sm mt-1">
-                      Click filename to preview
+                      Click filename to open
                     </p>
                   </div>
 
@@ -549,6 +565,21 @@ function Dashboard() {
                           className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm"
                         >
                           Revoke
+                        </button>
+                      )}
+                      {link.is_revoked && (
+                        <button
+                          onClick={() => handleDeleteLink(link.id)}
+                          className="
+                            bg-gray-700
+                            hover:bg-gray-800
+                            px-4
+                            py-2
+                            rounded-lg
+                            text-sm
+                          "
+                        >
+                          Delete
                         </button>
                       )}
                     </div>
