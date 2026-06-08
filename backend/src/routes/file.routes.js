@@ -5,12 +5,14 @@ const pool = require("../db/db");
 const { v4: uuidv4 } = require("uuid");
 const authMiddleware = require("../middleware/auth.middleware");
 
+require("dotenv").config();
+
 const router = express.Router();
 const upload = multer({
   storage: multer.memoryStorage(),
 
   limits: {
-    fileSize: 50 * 1024 * 1024,
+    fileSize: 10 * 1024 * 1024,
   },
 });
 
@@ -33,17 +35,23 @@ router.post(
 
       const fileCount = Number(fileCountResult.rows[0].count);
 
-      if (fileCount >= 50) {
+      if (fileCount >= 15) {
         return res.status(403).json({
-          error: "Maximum file limit (50) reached",
+          error: "Maximum file limit (15) reached",
         });
       }
 
       const fileId = uuidv4();
 
-      await minioClient.putObject("files", fileId, file.buffer, file.size, {
-        "Content-Type": file.mimetype,
-      });
+      await minioClient.putObject(
+        process.env.B2_BUCKET_NAME,
+        fileId,
+        file.buffer,
+        file.size,
+        {
+          "Content-Type": file.mimetype,
+        },
+      );
 
       await pool.query(
         `
@@ -107,7 +115,10 @@ router.get("/:id", authMiddleware, async (req, res) => {
 
     const file = result.rows[0];
 
-    const stream = await minioClient.getObject("files", file.storage_path);
+    const stream = await minioClient.getObject(
+      process.env.B2_BUCKET_NAME,
+      file.storage_path,
+    );
 
     res.setHeader(
       "Content-Disposition",
@@ -173,7 +184,7 @@ router.get("/view/:id", authMiddleware, async (req, res) => {
     const file = result.rows[0];
 
     const url = await minioClient.presignedGetObject(
-      "files",
+      process.env.B2_BUCKET_NAME,
       file.storage_path,
       60 * 5,
     );
@@ -221,9 +232,9 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
 
     const linkCount = Number(linksResult.rows[0].count);
 
-    if (linkCount >= 20) {
+    if (linkCount >= 10) {
       return res.status(403).json({
-        error: "Maximum share link limit (20) reached for this file",
+        error: "Maximum share link limit (10) reached for this file",
       });
     }
 
@@ -329,7 +340,7 @@ router.get("/share/:token", async (req, res) => {
     }
 
     const previewUrl = await minioClient.presignedGetObject(
-      "files",
+      process.env.B2_BUCKET_NAME,
       file.storage_path,
       60,
     );
@@ -472,7 +483,10 @@ router.delete("/:id", authMiddleware, async (req, res) => {
 
     const file = result.rows[0];
 
-    await minioClient.removeObject("files", file.storage_path);
+    await minioClient.removeObject(
+      process.env.B2_BUCKET_NAME,
+      file.storage_path,
+    );
 
     await pool.query(
       `

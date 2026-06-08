@@ -14,6 +14,7 @@ function Dashboard() {
   const [openMenu, setOpenMenu] = useState(null);
   const [manageFileId, setManageFileId] = useState(null);
   const [shareLinks, setShareLinks] = useState([]);
+  const [uploading, setUploading] = useState(false);
 
   const menuRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -66,6 +67,8 @@ function Dashboard() {
         return alert("Select a file first");
       }
 
+      setUploading(true);
+
       const formData = new FormData();
 
       formData.append("file", selectedFile);
@@ -87,6 +90,8 @@ function Dashboard() {
       console.error(err);
 
       alert(err.response?.data?.error || "Upload failed");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -321,9 +326,10 @@ function Dashboard() {
 
             <button
               onClick={handleUpload}
-              className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-xl font-semibold transition"
+              disabled={uploading}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-60 disabled:cursor-not-allowed px-6 py-3 rounded-xl font-semibold transition"
             >
-              Upload
+              {uploading ? "Uploading..." : "Upload"}
             </button>
           </div>
         </div>

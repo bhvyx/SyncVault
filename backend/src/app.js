@@ -4,12 +4,14 @@ const minioClient = require("./storage/minio");
 const fileRoutes = require("./routes/file.routes");
 const authRoutes = require("./routes/auth.routes");
 const cors = require("cors");
+require("dotenv").config();
 
 const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.FRONTEND_URL,
+    credentials: true,
     exposedHeaders: ["Content-Disposition"],
   }),
 );
@@ -51,6 +53,8 @@ app.get("/storage-status", async (req, res) => {
   }
 });
 
-app.listen(3000, () => {
-  console.log("Server running on port 3000");
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
