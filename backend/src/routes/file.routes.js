@@ -266,8 +266,10 @@ router.post("/:id/share", authMiddleware, async (req, res) => {
       [fileId, token, expiresAt, isOneTime || false],
     );
 
+    const frontendUrl = process.env.FRONTEND_URL;
+
     res.json({
-      shareUrl: `http://localhost:5173/share/${token}`,
+      shareUrl: `${frontendUrl}/share/${token}`,
     });
   } catch (err) {
     console.error(err);
