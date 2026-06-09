@@ -13,6 +13,14 @@ function Share() {
     loadSharedFile();
   }, []);
 
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 3000);
+  };
+
   const loadSharedFile = async () => {
     try {
       const response = await api.get(`/files/share/${token}`);
@@ -21,7 +29,12 @@ function Share() {
     } catch (err) {
       console.error(err);
 
-      navigate("/dashboard");
+      navigate("/dashboard", {
+        state: {
+          message: err.response?.data?.error || "Share link is no longer valid",
+          type: "error",
+        },
+      });
     }
   };
 
@@ -33,7 +46,7 @@ function Share() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.error || "Preview failed");
+      showMessage("error", err.response?.data?.error || "Preview failed");
     }
   };
 
@@ -44,8 +57,7 @@ function Share() {
       window.location.href = response.data.previewUrl;
     } catch (err) {
       console.error(err);
-
-      alert(err.response?.data?.error || "Download failed");
+      showMessage("error", err.response?.data?.error || "Download failed");
     }
   };
 

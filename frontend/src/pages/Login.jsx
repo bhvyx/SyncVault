@@ -1,15 +1,33 @@
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 
 import api from "../services/api";
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   localStorage.removeItem("token");
 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [message, setMessage] = useState(null);
+
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 3000);
+  };
+
+  useEffect(() => {
+    if (location.state?.message) {
+      showMessage(location.state.type || "error", location.state.message);
+
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleLogin = async () => {
     try {
@@ -30,6 +48,17 @@ function Login() {
 
   return (
     <div className="min-h-screen bg-[#0d1117] flex items-center justify-center px-4">
+      {message && (
+        <div
+          className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg border ${
+            message.type === "success"
+              ? "bg-green-900/80 border-green-500 text-green-200"
+              : "bg-red-900/80 border-red-500 text-red-200"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
       <div className="w-full max-w-md bg-[#161b22] border border-[#30363d] rounded-2xl p-10 shadow-[0_0_40px_rgba(0,0,0,0.6)]">
         <div className="text-center mb-8">
           <h1 className="text-white text-5xl font-bold tracking-tight">

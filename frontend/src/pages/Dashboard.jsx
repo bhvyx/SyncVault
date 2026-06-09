@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 import api from "../services/api";
 
 function Dashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [files, setFiles] = useState([]);
@@ -15,6 +16,7 @@ function Dashboard() {
   const [manageFileId, setManageFileId] = useState(null);
   const [shareLinks, setShareLinks] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [message, setMessage] = useState(null);
 
   const menuRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -34,10 +36,17 @@ function Dashboard() {
       if (err.response?.status === 401) {
         localStorage.removeItem("token");
 
-        navigate("/login");
-      }
+        navigate("/login", {
+          state: {
+            message: "Session expired, please login again",
+            type: "error",
+          },
+        });
+      } else {
+        console.error(err);
 
-      console.error(err);
+        showMessage("error", "Failed to load files");
+      }
     }
   };
 
@@ -61,10 +70,28 @@ function Dashboard() {
     };
   }, []);
 
+  const showMessage = (type, text) => {
+    setMessage({ type, text });
+
+    setTimeout(() => {
+      setMessage(null);
+    }, 3000);
+  };
+
+  useEffect(() => {
+    if (location.state?.message) {
+      showMessage(location.state.type || "error", location.state.message);
+
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
   const handleUpload = async () => {
     try {
       if (!selectedFile) {
-        return alert("Select a file first");
+        showMessage("error", "Please select a file to upload");
+
+        return;
       }
 
       setUploading(true);
@@ -82,6 +109,7 @@ function Dashboard() {
       });
 
       setSelectedFile(null);
+      showMessage("success", "Upload successful");
 
       fileInputRef.current.value = "";
 
@@ -89,7 +117,7 @@ function Dashboard() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.error || "Upload failed");
+      showMessage("error", err.response?.data?.error || "Upload failed");
     } finally {
       setUploading(false);
     }
@@ -109,7 +137,7 @@ function Dashboard() {
     } catch (err) {
       console.error(err);
 
-      alert("Preview failed");
+      showMessage("error", err.response?.data?.error || "Preview Failed");
     }
   };
 
@@ -147,13 +175,13 @@ function Dashboard() {
       link.remove();
     } catch (err) {
       console.error(err);
-      alert("Download failed");
+      showMessage("error", "Download failed");
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem("token");
-
+    showMessage("success", "Logged out");
     navigate("/login");
   };
 
@@ -171,11 +199,13 @@ function Dashboard() {
         },
       });
 
+      showMessage("success", "File deleted");
+
       loadFiles();
     } catch (err) {
       console.error(err);
 
-      alert("Delete failed");
+      showMessage("error", "Delete failed");
     }
   };
 
@@ -199,13 +229,13 @@ function Dashboard() {
 
       await navigator.clipboard.writeText(response.data.shareUrl);
 
-      alert("Share link copied!");
+      showMessage("success", "Share link copied!");
 
       setShareFileId(null);
       setShareExpiry("");
       setShareOneTime(false);
     } catch (err) {
-      alert(err.response?.data?.error || "Share failed");
+      showMessage("error", err.response?.data?.error || "Share failed");
     }
   };
 
@@ -224,7 +254,7 @@ function Dashboard() {
     } catch (err) {
       console.error(err);
 
-      alert("Failed to load links");
+      showMessage("error", "Failed to load links");
     }
   };
 
@@ -252,10 +282,11 @@ function Dashboard() {
             : link,
         ),
       );
+      showMessage("success", "Link revoked");
     } catch (err) {
       console.error(err);
 
-      alert("Failed to revoke link");
+      showMessage("error", "Failed to revoke link");
     }
   };
 
@@ -270,10 +301,11 @@ function Dashboard() {
       });
 
       setShareLinks(shareLinks.filter((link) => link.id !== linkId));
+      showMessage("success", "Link deleted");
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.error || "Delete failed");
+      showMessage("error", err.response?.data?.error || "Delete failed");
     }
   };
 
@@ -283,16 +315,27 @@ function Dashboard() {
 
       await navigator.clipboard.writeText(url);
 
-      alert("Link copied!");
+      showMessage("success", "Link copied!");
     } catch (err) {
       console.error(err);
 
-      alert("Copy failed");
+      showMessage("error", "Copy failed");
     }
   };
 
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
+      {message && (
+        <div
+          className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl shadow-lg border ${
+            message.type === "success"
+              ? "bg-green-900/80 border-green-500 text-green-200"
+              : "bg-red-900/80 border-red-500 text-red-200"
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
       <nav className="border-b border-[#30363d] bg-[#161b22]">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
