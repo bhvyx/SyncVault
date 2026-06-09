@@ -56,14 +56,23 @@ router.post(
       await pool.query(
         `
         INSERT INTO files (
-            id,
-            file_name,
-            storage_path,
-            user_id
+          id,
+          file_name,
+          storage_path,
+          user_id,
+          file_size,
+          mime_type
         )
-        VALUES ($1, $2, $3, $4)
-    `,
-        [fileId, file.originalname, fileId, req.user.id],
+        VALUES ($1, $2, $3, $4, $5, $6)
+        `,
+        [
+          fileId,
+          file.originalname,
+          fileId,
+          req.user.id,
+          file.size,
+          file.mimetype,
+        ],
       );
 
       const versionId = uuidv4();

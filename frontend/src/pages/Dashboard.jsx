@@ -323,6 +323,36 @@ function Dashboard() {
     }
   };
 
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) {
+      return `${bytes} B`;
+    }
+
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatType = (mime) => {
+    const map = {
+      "application/pdf": "PDF",
+      "image/jpeg": "Image",
+      "image/png": "Image",
+      "image/webp": "Image",
+      "image/gif": "Image",
+      "text/plain": "Text",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        "Word Document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        "Spreadsheet",
+      "video/mp4": "Video",
+      "audio/mpeg": "Audio",
+    };
+    return map[mime] || mime; // fallback to raw if unknown
+  };
+
   return (
     <div className="min-h-screen bg-[#0d1117] text-white">
       {message && (
@@ -341,12 +371,12 @@ function Dashboard() {
           <div>
             <h1 className="text-2xl font-bold">SyncVault</h1>
 
-            <p className="text-gray-400 text-sm">Distributed File Storage</p>
+            <p className="text-gray-400 text-sm">Cloud File Storage</p>
           </div>
 
           <button
             onClick={handleLogout}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-sm font-medium transition"
+            className="bg-gray-600 hover:bg-gray-500 text-white px-4 py-2 rounded"
           >
             Logout
           </button>
@@ -404,10 +434,19 @@ function Dashboard() {
                     >
                       {file.file_name}
                     </h3>
-
-                    <p className="text-gray-400 text-sm mt-1">
-                      Click filename to open
-                    </p>
+                    <div className="text-gray-400 text-sm mt-1 space-y-1">
+                      <p>
+                        {formatType(file.mime_type)} ·{" "}
+                        {formatFileSize(file.file_size)} ·{" "}
+                        {new Date(file.created_at).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
                   </div>
 
                   <div className="flex gap-3">
