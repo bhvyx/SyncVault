@@ -1,224 +1,164 @@
 # SyncVault
 
-A full-stack distributed file storage and sync platform built using React, Node.js, PostgreSQL, and MinIO.
+A full-stack cloud file storage and sharing platform — built with React, Node.js, PostgreSQL and Backblaze B2 object storage.
 
-SyncVault allows users to securely upload, store, sync, and download files with JWT-based authentication and user-specific access control.
+🔗 **Live Demo: [syncvault-storage.vercel.app](https://syncvault-storage.vercel.app)**
+
+---
+
+<img src="assets/dashboard.png" width="100%">
+
+---
+
+## What is SyncVault?
+
+SyncVault lets users securely upload, manage, preview and share files from the browser without ever downloading them first. Files are stored in Backblaze B2 object storage (S3-compatible), with metadata persisted in PostgreSQL. Share links support expiry, one-time use and revocation giving owners full control over who can access their files and for how long.
 
 ---
 
 ## Features
 
-- JWT Authentication
-- Protected Routes & APIs
-- Secure File Uploads
-- File Downloads with Streaming
-- User-Specific File Ownership
-- Object Storage using MinIO
-- PostgreSQL Metadata Management
-- Full React Frontend
-- Responsive Dark UI
-- Multipart File Handling
-- Persistent Login using JWT
+**File Management**
+
+- Upload files securely with multipart form handling via Multer
+- Stream files directly from B2 storage no intermediate server buffering
+- Preview images, PDFs, and videos in-browser without downloading
+- Delete files with storage cleanup MinIO object is removed before the DB record to prevent orphaned objects
+- Each file is owned by the uploading user; no cross-user access without an explicit share link
+
+**Share Links**
+
+- Generate up to 15 share links per file
+- Expiring links set a TTL, link auto-invalidates after expiry
+- One-time-use links invalidated immediately after first access
+- Revocable links owner can manually invalidate any active link
+- Share quota per file prevents link spam
+
+**Auth & Security**
+
+- JWT-based authentication with protected frontend routes and backend middleware
+- Passwords hashed with bcrypt
+- All file operations validated against the authenticated user's ownership
+
+---
+
+## Architecture
+
+```
+Browser (React · Vercel)
+         │
+         │  JWT in Authorization header
+         ▼
+  Express API (Railway)
+         │
+    ┌────┴────────────────┐
+    ▼                     ▼
+NeonDB (PostgreSQL)   Backblaze B2
+  · users             · file objects
+  · file metadata     · accessed via
+  · share links         presigned URLs
+  · ownership
+```
+
+**Request flow for file access:**
+
+1. Client sends JWT to Express API
+2. API validates ownership or share link permission
+3. API generates a presigned B2 URL (time-limited, direct-to-storage)
+4. Client fetches file directly from B2 — API is not in the data path
+
+This means the backend never buffers file bytes during downloads, keeping API latency low regardless of file size.
+
+---
+
+## Engineering Decisions
+
+**Why Backblaze B2 over AWS S3?**
+B2 has zero egress fees and a generous free tier. More importantly, B2 exposes an S3-compatible API — the entire storage layer uses the MinIO SDK, so swapping to S3, GCS or any other provider requires changing three environment variables and zero lines of code.
+
+**Why delete the B2 object before the PostgreSQL record?**
+If the DB delete runs first and then the B2 delete fails, the file object becomes an orphan with no metadata reference, no way to find or clean it up, permanent storage leak. Deleting from B2 first means a failure leaves a recoverable DB row pointing to a valid object. Retrying is safe.
+
+**Why presigned URLs instead of proxying downloads through the backend?**
+Proxying would route every downloaded byte through the Express server, making it the bottleneck for large files. Presigned URLs let clients pull directly from B2, keeping the API layer stateless and horizontally scalable.
+
+**Why PostgreSQL for metadata instead of MongoDB?**
+Share links, file ownership, and expiry logic all involve relational constraints and transactional updates. PostgreSQL's foreign keys and `ON DELETE CASCADE` enforce data integrity at the schema level rather than in application code.
 
 ---
 
 ## Tech Stack
 
-### Frontend
-
-- React
-- Vite
-- Tailwind CSS
-- Axios
-- React Router DOM
-
-### Backend
-
-- Node.js
-- Express.js
-- PostgreSQL
-- MinIO
-- JWT Authentication
-- Multer
+| Layer            | Technology                                        |
+| ---------------- | ------------------------------------------------- |
+| Frontend         | React.js, Vite, Tailwind CSS, React Router, Axios |
+| Backend          | Node.js, Express.js, Multer, JWT, bcrypt          |
+| Database         | PostgreSQL (hosted on Neon)                       |
+| Object Storage   | Backblaze B2 via MinIO SDK (S3-compatible)        |
+| Frontend Hosting | Vercel                                            |
+| Backend Hosting  | Railway                                           |
 
 ---
 
-## Architecture Diagram
+## Local Setup
 
-<p align="center">
-  <img src="./assets/architecture.png" width="100%" />
-</p>
+### Prerequisites
 
----
+- Node.js 18+
+- PostgreSQL (local instance or free Neon account)
+- MinIO or a Backblaze B2 / any S3-compatible bucket
 
-## Storage Architecture
-
-- PostgreSQL stores metadata only
-- MinIO stores actual binary file objects
-- Backend handles authentication and file streaming
-
----
-
-## Project Structure
-
-```text
-syncvault/
-│
-├── frontend/
-│
-├── backend/
-│
-└── README.md
-```
-
----
-
-## Core Functionalities
-
-### Authentication
-
-- User signup/login
-- JWT token generation
-- Protected frontend routes
-- Protected backend APIs
-
-### File Uploads
-
-- Multipart uploads using Multer
-- Files stored inside MinIO buckets
-- Metadata stored in PostgreSQL
-
-### File Downloads
-
-- Streaming downloads from MinIO
-- Blob handling on frontend
-- Original filename preservation
-
-### Sync APIs
-
-- Timestamp-based sync endpoint
-- User-specific file synchronization
-
----
-
-## Environment Variables
-
-### Backend `.env`
-
-```env
-DB_USER=
-DB_HOST=
-DB_NAME=
-DB_PASSWORD=
-DB_PORT=
-
-MINIO_ENDPOINT=
-MINIO_PORT=
-MINIO_ACCESS_KEY=
-MINIO_SECRET_KEY=
-
-JWT_SECRET=
-```
-
----
-
-## Software Requirements
-
-Before running SyncVault locally, ensure the following are installed:
-
-- Node.js
-- PostgreSQL
-- MinIO
-- npm
-
----
-
-## Required Services
-
-### PostgreSQL
-
-Used for:
-
-- users
-- file metadata
-- file versions
-
-Default local port:
-
-```txt
-5432
-```
-
----
-
-### MinIO
-
-Used for:
-
-- object storage
-- binary file storage
-
-Default local ports:
-
-```txt
-9000 -> API
-9001 -> Console
-```
-
-Start MinIO locally:
+### 1. Clone the repo
 
 ```bash
-minio server C:\minio-data --console-address ":9001"
+git clone https://github.com/bhvyx/SyncVault.git
+cd SyncVault
 ```
 
----
-
-## Installation
-
-### Clone Repository
-
-```bash
-git clone <repo-url>
-```
-
----
-
-### Backend Setup
+### 2. Backend
 
 ```bash
 cd backend
-
 npm install
-
 npm run dev
 ```
 
----
-
-### Frontend Setup
+### 3. Frontend
 
 ```bash
 cd frontend
-
 npm install
-
 npm run dev
 ```
 
----
+### Environment Variables
 
-## Future Improvements
+**backend `.env`**
 
-- Chunked uploads
-- Resumable uploads
-- Redis caching
-- Real-time sync
-- AWS S3 deployment
-- Background job queues
-- File versioning improvements
+```env
+DATABASE_URL=
+
+JWT_SECRET=
+
+B2_ENDPOINT=          # e.g. s3.us-west-004.backblazeb2.com (or localhost:9000 for local MinIO)
+B2_BUCKET_NAME=
+B2_ACCESS_KEY_ID=
+B2_SECRET_ACCESS_KEY=
+B2_USE_SSL=           # true for B2, false for local MinIO
+
+FRONTEND_URL=
+PORT=
+```
+
+**frontend `.env`**
+
+```env
+VITE_API_URL=         # e.g. http://localhost:3000
+```
 
 ---
 
 ## Author
 
-Bhavya Gupta
+**Bhavya Gupta**
+[GitHub](https://github.com/bhvyx) · [LinkedIn](https://linkedin.com/in/bhavya2302)
